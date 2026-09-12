@@ -13,6 +13,18 @@ from azure.mgmt.cosmosdb.models import (
 
 SYSTEM_FIELDS = {"id", "_schemaVersion", "created_at", "updated_at", "attachments"}
 
+# Reserved: real system containers this server manages directly, plus the
+# whole leading-underscore namespace so a future system container never
+# collides with a user collection either. A collection named the same as
+# one of these would let delete_collection target -- and destroy -- the
+# real system container via its ARM name (this happened once for real:
+# _schemas got wiped this way, before this guard existed).
+SYSTEM_CONTAINER_NAMES = {"_schemas", "_notifications", "_search_index"}
+
+
+def is_protected_collection_name(name: str) -> bool:
+    return name in SYSTEM_CONTAINER_NAMES or name.startswith("_")
+
 ALLOWED_FIELD_TYPES: dict[str, Any] = {
     "string": str,
     "number": (int, float),

@@ -53,6 +53,11 @@ def register(mcp: FastMCP) -> None:
         embed_fields: field names concatenated to build the search embedding (used once
         semantic search is wired up; harmless to set now).
         """
+        if cosmos_service.is_protected_collection_name(collection):
+            raise ValueError(
+                f"'{collection}' is a reserved name (system containers, and anything starting "
+                "with '_', are off-limits for user collections)"
+            )
         _validate_field_defs(fields)
         container = cosmos_service.get_schemas_container()
         try:
@@ -82,6 +87,8 @@ def register(mcp: FastMCP) -> None:
         This cannot be undone -- pass confirm=True explicitly to proceed.
         To remove individual documents instead, use delete_document.
         """
+        if cosmos_service.is_protected_collection_name(collection):
+            raise ValueError(f"'{collection}' is a reserved system name and cannot be deleted this way")
         if not confirm:
             raise ValueError(
                 f"this permanently deletes collection '{collection}' and all its documents -- "
