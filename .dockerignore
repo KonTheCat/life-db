@@ -1,0 +1,10 @@
+.venv
+.git
+.env
+.env.example
+.graph_token_cache.json
+.dispatcher.log
+.azurite
+__pycache__
+*.pyc
+life-db-plan.md

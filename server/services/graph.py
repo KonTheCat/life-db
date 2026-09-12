@@ -4,9 +4,12 @@ from pathlib import Path
 import httpx
 import msal
 
+from services import keyvault
+
 SCOPES = ["Calendars.ReadWrite", "Contacts.ReadWrite"]
 _AUTHORITY = "https://login.microsoftonline.com/common"
 _GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+_KEY_VAULT_SECRET_NAME = "graph-token-cache"
 
 
 def _cache_path() -> Path:
@@ -14,15 +17,29 @@ def _cache_path() -> Path:
 
 
 def _load_cache() -> msal.SerializableTokenCache:
+    """Local file for dev, Key Vault in production (plan §7) -- either way,
+    this cache holds the refresh token and MSAL handles its rotation.
+    """
     cache = msal.SerializableTokenCache()
-    path = _cache_path()
-    if path.exists():
-        cache.deserialize(path.read_text())
+    if keyvault.enabled():
+        state = keyvault.get_secret(_KEY_VAULT_SECRET_NAME)
+        if state:
+            cache.deserialize(state)
+    else:
+        path = _cache_path()
+        if path.exists():
+            cache.deserialize(path.read_text())
     return cache
 
 
 def _save_cache(cache: msal.SerializableTokenCache) -> None:
-    if cache.has_state_changed:
+    if not cache.has_state_changed:
+        return
+    if keyvault.enabled():
+        # Refresh tokens rotate and the old one is invalidated on use, so
+        # persisting the new state back is not optional (plan §7).
+        keyvault.set_secret(_KEY_VAULT_SECRET_NAME, cache.serialize())
+    else:
         _cache_path().write_text(cache.serialize())
 
 

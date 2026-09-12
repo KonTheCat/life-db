@@ -5,7 +5,21 @@ from fastmcp import FastMCP
 
 load_dotenv()
 
-mcp = FastMCP("personal-db")
+_TRANSPORT = os.environ.get("MCP_TRANSPORT", "stdio")
+
+_auth = None
+if _TRANSPORT != "stdio":
+    from services import keyvault
+
+    keyvault.bootstrap_env(
+        {"TELEGRAM_BOT_TOKEN": "telegram-bot-token", "MCP_BEARER_TOKEN": "mcp-bearer-token"}
+    )
+
+    from services.auth import get_auth_provider
+
+    _auth = get_auth_provider()
+
+mcp = FastMCP("personal-db", auth=_auth)
 
 
 @mcp.tool
@@ -34,8 +48,7 @@ attachments.register(mcp)
 
 
 def main() -> None:
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "stdio":
+    if _TRANSPORT == "stdio":
         mcp.run(transport="stdio")
     else:
         mcp.run(

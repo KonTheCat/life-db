@@ -7,6 +7,10 @@ from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv()
 
+from services import keyvault  # noqa: E402
+
+keyvault.bootstrap_env({"TELEGRAM_BOT_TOKEN": "telegram-bot-token"})
+
 from services import notifications as notifications_service  # noqa: E402
 
 

@@ -20,7 +20,14 @@ export COSMOS_DATABASE="personaldb"
 export COSMOS_DEV_DATABASE="personaldb-dev"
 
 # Container Apps (used from build phase 8 onward)
-export ACR_NAME="lifedbacr"
+# ACR is shared across projects -- billed a small fixed daily rate regardless
+# of usage, unlike everything else here, so it lives in the cross-project
+# shared-global RG instead of lifedb. Everything else in this section has no
+# fixed idle cost (Consumption Container Apps env, pay-per-GB Log Analytics).
+export ACR_RESOURCE_GROUP="shared-global"
+# ACR names are globally unique across all of Azure, not just this
+# subscription -- "sharedacreastus2" was already taken by someone else.
+export ACR_NAME="sharedacra7edb0c9"
 export LOG_ANALYTICS_WORKSPACE="lifedb-logs"
 export CONTAINERAPPS_ENV="lifedb-env"
 export CONTAINER_APP="mcp-server"
@@ -35,3 +42,7 @@ export KEY_VAULT="lifedb-kv"
 
 # Managed identity
 export MANAGED_IDENTITY="lifedb-identity"
+
+# Non-secret app config (secrets themselves live in Key Vault, see infra/07)
+export TELEGRAM_CHAT_ID="5113962030"
+export GRAPH_CLIENT_ID="3336a280-393b-4055-9b97-0e1e7f9106b6"
