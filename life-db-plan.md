@@ -128,10 +128,10 @@ RBAC roles to assign to the managed identity:
 
 This is the fiddly part because it's a **personal** Microsoft account, not a work/school tenant — application (app-only) permissions generally don't work for personal-account Calendars/Contacts; you need **delegated** permissions with a real sign-in.
 
-1. Register an app in Entra ID: **Accounts in any organizational directory and personal Microsoft accounts** (multi-tenant + MSA). Add delegated scopes: `Calendars.ReadWrite`, `Contacts.ReadWrite`, `offline_access`.
-2. One-time interactive auth: run the auth-code + PKCE flow **once**, locally, to get a refresh token. (Do this from your machine, not inside the container — it needs a browser.)
-3. Store the refresh token in Key Vault. The server uses MSAL (Python) to redeem it for short-lived access tokens on each Graph call, and **writes the rotated refresh token back to Key Vault** every time it refreshes — refresh tokens rotate and the old one is invalidated, so persisting the new one is not optional.
-4. Client secret (or, better, a certificate) for the confidential client also lives in Key Vault.
+1. Register an app in Entra ID: **Accounts in any organizational directory and personal Microsoft accounts** (multi-tenant + MSA), as a **public client** (`isFallbackPublicClient: true`, no client secret/certificate). Add delegated scopes: `Calendars.ReadWrite`, `Contacts.ReadWrite`, `offline_access`. Built via `infra/09-entra-app-registration.sh` (app registration is scriptable; consent is not — see step 2).
+2. One-time interactive auth: **device code flow** (`server/services/graph_auth_setup.py`), not auth-code + PKCE — no redirect URI or local HTTP listener needed, just a `microsoft.com/devicelogin` code the user enters on any browser (doesn't have to be the machine running the script). Personal-account consent happens inline during this sign-in.
+3. MSAL's `SerializableTokenCache`, persisted to a local file (`.graph_token_cache.json`, gitignored), holds the access + refresh tokens and handles rotation transparently on every `acquire_token_silent()` call — no manual refresh-token bookkeeping needed. Locally this file *is* the credential store; once deployed (phase 8), its contents move into Key Vault (or the cache gets re-serialized there) so the Container App can read it via managed identity instead of a local file.
+4. No client secret or certificate at all, since this is a public client — one less secret to manage for a single-user personal script.
 
 ---
 

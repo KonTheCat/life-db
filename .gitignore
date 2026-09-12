@@ -11,3 +11,4 @@ wheels/
 
 # Local secrets
 .env
+.graph_token_cache.json

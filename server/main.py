@@ -14,12 +14,21 @@ def ping(message: str = "pong") -> str:
     return f"personal-db says: {message}"
 
 
-from tools import documents, notifications, schema, search  # noqa: E402  (after load_dotenv, before tool registration)
+from tools import (  # noqa: E402  (after load_dotenv, before tool registration)
+    calendar,
+    contacts,
+    documents,
+    notifications,
+    schema,
+    search,
+)
 
 schema.register(mcp)
 documents.register(mcp)
 search.register(mcp)
 notifications.register(mcp)
+calendar.register(mcp)
+contacts.register(mcp)
 
 
 def main() -> None:
