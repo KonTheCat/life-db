@@ -68,6 +68,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool
     def get_document(collection: str, id: str) -> dict:
         """Fetch a single document by id from a collection."""
+        _get_schema_doc(collection)  # also guards against silently creating a container for a typo'd name
         container = cosmos_service.get_or_create_collection_container(collection)
         try:
             return container.read_item(item=id, partition_key=id)
@@ -87,6 +88,7 @@ def register(mcp: FastMCP) -> None:
         fields: project only these field names (plus id) to keep responses lean;
                 omit for full documents.
         """
+        _get_schema_doc(collection)  # also guards against silently creating a container for a typo'd name
         container = cosmos_service.get_or_create_collection_container(collection)
         select_clause = _build_select_clause(fields)
         where_clause, params = _build_where_clause(filters)

@@ -143,3 +143,15 @@ def get_or_create_collection_container(collection_name: str) -> ContainerProxy:
 
     _container_cache[collection_name] = container
     return container
+
+
+def delete_collection_container(collection_name: str) -> None:
+    """Structural delete -> ARM, same reason as creation (see get_or_create_collection_container)."""
+    mgmt = _get_mgmt_client()
+    mgmt.sql_resources.begin_delete_sql_container(
+        os.environ["COSMOS_RESOURCE_GROUP"],
+        os.environ["COSMOS_ACCOUNT_NAME"],
+        os.environ.get("COSMOS_DATABASE_NAME", "personaldb-dev"),
+        collection_name,
+    ).result()
+    _container_cache.pop(collection_name, None)

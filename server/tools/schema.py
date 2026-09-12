@@ -76,6 +76,23 @@ def register(mcp: FastMCP) -> None:
         return doc
 
     @mcp.tool
+    def delete_collection(collection: str, confirm: bool = False) -> dict:
+        """Permanently delete a collection: its schema AND every document in it.
+
+        This cannot be undone -- pass confirm=True explicitly to proceed.
+        To remove individual documents instead, use delete_document.
+        """
+        if not confirm:
+            raise ValueError(
+                f"this permanently deletes collection '{collection}' and all its documents -- "
+                "call again with confirm=True to proceed"
+            )
+        _get_schema_doc(collection)  # raises if it doesn't exist
+        cosmos_service.delete_collection_container(collection)
+        cosmos_service.get_schemas_container().delete_item(item=collection, partition_key=collection)
+        return {"deleted_collection": collection}
+
+    @mcp.tool
     def update_schema(
         collection: str, fields: dict, embed_fields: list[str] | None = None
     ) -> dict:
