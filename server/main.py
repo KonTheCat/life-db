@@ -14,6 +14,12 @@ def ping(message: str = "pong") -> str:
     return f"personal-db says: {message}"
 
 
+from tools import documents, schema  # noqa: E402  (after load_dotenv, before tool registration)
+
+schema.register(mcp)
+documents.register(mcp)
+
+
 def main() -> None:
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "stdio":

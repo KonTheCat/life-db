@@ -57,6 +57,7 @@ Both compute pieces (the always-on server and the scheduled job) live in the **s
 
 RBAC roles to assign to the managed identity:
 - Cosmos DB Built-in Data Contributor (data-plane role, assigned via `az cosmosdb sql role assignment create` — the control-plane `Contributor` role does **not** grant data access)
+- **Cosmos DB Operator (ARM/control-plane role)** — needed *in addition* to the data-plane role above. Discovered during phase 3: Cosmos DB's AAD data-plane RBAC explicitly cannot create/delete containers or databases (only item-level CRUD), even with `containers/*` in the data-plane role's dataActions — see [aka.ms/cosmos-native-rbac](https://aka.ms/cosmos-native-rbac). `create_collection`'s dynamic container creation therefore goes through the ARM management SDK (`azure-mgmt-cosmosdb`), which needs this ARM role. Locally this worked for free under subscription Owner; the deployed managed identity will need it assigned explicitly.
 - Storage Blob Data Contributor on the storage account
 - Key Vault Secrets User on the vault
 

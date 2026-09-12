@@ -1,0 +1,14 @@
+{
+  "indexingMode": "consistent",
+  "automatic": true,
+  "includedPaths": [
+    { "path": "/*" }
+  ],
+  "excludedPaths": [
+    { "path": "/\"_etag\"/?" },
+    { "path": "/vector/*" }
+  ],
+  "vectorIndexes": [
+    { "path": "/vector", "type": "quantizedFlat" }
+  ]
+}

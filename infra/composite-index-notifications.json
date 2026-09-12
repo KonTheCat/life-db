@@ -1,0 +1,16 @@
+{
+  "indexingMode": "consistent",
+  "automatic": true,
+  "includedPaths": [
+    { "path": "/*" }
+  ],
+  "excludedPaths": [
+    { "path": "/\"_etag\"/?" }
+  ],
+  "compositeIndexes": [
+    [
+      { "path": "/status", "order": "ascending" },
+      { "path": "/due_at", "order": "ascending" }
+    ]
+  ]
+}
