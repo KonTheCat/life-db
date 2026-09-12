@@ -6,6 +6,10 @@ export SUBSCRIPTION_ID="a7edb0c9-d49d-4c7c-a3d7-776c14e253d2"
 export LOCATION="eastus2"
 export RESOURCE_GROUP="lifedb"
 
+# Azure OpenAI (embeddings, plan §3)
+export AZURE_OPENAI_ACCOUNT="lifedb-openai"
+export AZURE_OPENAI_EMBEDDING_DEPLOYMENT="text-embedding-3-small"
+
 # Cosmos DB
 export COSMOS_ACCOUNT="lifedb"
 export COSMOS_DATABASE="personaldb"

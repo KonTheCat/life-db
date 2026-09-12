@@ -27,7 +27,7 @@ def _get_schema_doc(collection: str) -> dict:
             item=collection, partition_key=collection
         )
     except exceptions.CosmosResourceNotFoundError:
-        raise ValueError(f"no schema for collection '{collection}' — call create_collection first")
+        raise ValueError(f"no schema for collection '{collection}' -- call create_collection first")
 
 
 def register(mcp: FastMCP) -> None:

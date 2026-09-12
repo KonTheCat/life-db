@@ -50,6 +50,7 @@ Both compute pieces (the always-on server and the scheduled job) live in the **s
 | Container App: `mcp-server` | the FastMCP server, HTTP ingress | scale 0–1 or 1–1 (see §14) |
 | Container Apps Job: `notification-dispatcher` | scans `_notifications`, sends due reminders | trigger type `Schedule`, cron expression |
 | Cosmos DB account (NoSQL API, **serverless** capacity mode) | primary data store | serverless has no per-container throughput to manage and no fixed container-count cap (that 25-container ceiling only applies to shared-throughput databases) — good fit for a schema-driven, containers-created-on-demand design |
+| Azure OpenAI account (`S0`) + `text-embedding-3-small` deployment | embeddings for semantic recall | provisioned in phase 4 as `lifedb-openai` (added to the resource set; wasn't broken out as its own row in the original plan) |
 | Storage Account (StorageV2, Standard LRS) | blob container for attachments | private container, access via SAS |
 | Key Vault | secrets: Cosmos key (if not using AAD auth), Graph client secret + refresh token, MCP bearer token, storage connection info | Container App reads via managed identity, not env-baked secrets |
 | User-assigned Managed Identity | shared by `mcp-server` and the job | RBAC roles below |
@@ -60,6 +61,7 @@ RBAC roles to assign to the managed identity:
 - **Cosmos DB Operator (ARM/control-plane role)** — needed *in addition* to the data-plane role above. Discovered during phase 3: Cosmos DB's AAD data-plane RBAC explicitly cannot create/delete containers or databases (only item-level CRUD), even with `containers/*` in the data-plane role's dataActions — see [aka.ms/cosmos-native-rbac](https://aka.ms/cosmos-native-rbac). `create_collection`'s dynamic container creation therefore goes through the ARM management SDK (`azure-mgmt-cosmosdb`), which needs this ARM role. Locally this worked for free under subscription Owner; the deployed managed identity will need it assigned explicitly.
 - Storage Blob Data Contributor on the storage account
 - Key Vault Secrets User on the vault
+- Cognitive Services OpenAI User on the Azure OpenAI account (embeddings)
 
 ---
 

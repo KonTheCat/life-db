@@ -7,6 +7,7 @@ from azure.cosmos import exceptions
 from fastmcp import FastMCP
 
 from services import cosmos as cosmos_service
+from services import embeddings as embeddings_service
 from services.cosmos import validate_against_schema
 
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -24,7 +25,7 @@ def _get_schema_doc(collection: str) -> dict:
             item=collection, partition_key=collection
         )
     except exceptions.CosmosResourceNotFoundError:
-        raise ValueError(f"no schema for collection '{collection}' — call create_collection first")
+        raise ValueError(f"no schema for collection '{collection}' -- call create_collection first")
 
 
 def _build_select_clause(fields: list[str] | None) -> str:
@@ -132,6 +133,11 @@ def register(mcp: FastMCP) -> None:
         doc.setdefault("attachments", [])
 
         container.upsert_item(doc)
+
+        snippet = embeddings_service.build_snippet(schema, doc)
+        if snippet:
+            embeddings_service.schedule_embedding(collection, id, snippet)
+
         return doc
 
     @mcp.tool
@@ -142,4 +148,5 @@ def register(mcp: FastMCP) -> None:
             container.delete_item(item=id, partition_key=id)
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError(f"no document '{id}' in collection '{collection}'")
+        embeddings_service.schedule_deindex(collection, id)
         return {"deleted": id}
