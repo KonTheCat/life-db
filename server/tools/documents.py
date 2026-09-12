@@ -143,10 +143,12 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool
     def delete_document(collection: str, id: str) -> dict:
         """Delete a document by id."""
+        schema = _get_schema_doc(collection)
         container = cosmos_service.get_or_create_collection_container(collection)
         try:
             container.delete_item(item=id, partition_key=id)
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError(f"no document '{id}' in collection '{collection}'")
-        embeddings_service.schedule_deindex(collection, id)
+        if schema.get("embed_fields"):
+            embeddings_service.schedule_deindex(collection, id)
         return {"deleted": id}

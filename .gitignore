@@ -12,3 +12,6 @@ wheels/
 # Local secrets
 .env
 .graph_token_cache.json
+
+# Local Azurite blob storage emulator data
+.azurite/
