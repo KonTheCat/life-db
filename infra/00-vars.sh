@@ -27,7 +27,7 @@ export CONTAINER_APP="mcp-server"
 export CONTAINER_APP_JOB="notification-dispatcher"
 
 # Storage
-export STORAGE_ACCOUNT="lifedbstorage"
+export STORAGE_ACCOUNT="lifedbstor"
 export STORAGE_CONTAINER="attachments"
 
 # Key Vault
