@@ -16,6 +16,8 @@ def register(mcp: FastMCP) -> None:
 
         due_at: ISO 8601 UTC timestamp — the notification fires within
                 roughly a minute of due_at (Service Bus scheduled delivery).
+                For a relative time ("in 20 minutes", "tomorrow at 9am"),
+                call get_current_time first rather than estimating now().
         item_ref: optional {"collection": ..., "docId": ...} linking this
                   reminder to a document elsewhere in the database.
         """

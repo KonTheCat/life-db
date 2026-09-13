@@ -53,3 +53,4 @@ export MANAGED_IDENTITY="lifedb-identity"
 # Non-secret app config (secrets themselves live in Key Vault, see infra/07)
 export TELEGRAM_CHAT_ID="5113962030"
 export GRAPH_CLIENT_ID="3336a280-393b-4055-9b97-0e1e7f9106b6"
+export USER_TIMEZONE="America/New_York"

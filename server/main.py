@@ -36,6 +36,7 @@ from tools import (  # noqa: E402  (after load_dotenv, before tool registration)
     notifications,
     schema,
     search,
+    time_tool,
 )
 
 schema.register(mcp)
@@ -45,6 +46,7 @@ notifications.register(mcp)
 calendar.register(mcp)
 contacts.register(mcp)
 attachments.register(mcp)
+time_tool.register(mcp)
 
 
 def main() -> None:
