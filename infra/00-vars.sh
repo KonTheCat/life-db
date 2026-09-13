@@ -33,6 +33,13 @@ export CONTAINERAPPS_ENV="lifedb-env"
 export CONTAINER_APP="mcp-server"
 export CONTAINER_APP_JOB="notification-dispatcher"
 
+# Service Bus (notification wake-up scheduling, replaces the cron dispatcher --
+# see service-bus-notifications-plan.md). Basic tier, two queues on one
+# namespace mirroring the Cosmos personaldb/personaldb-dev split.
+export SERVICE_BUS_NAMESPACE="lifedb-bus"
+export SERVICE_BUS_QUEUE="notifications"
+export SERVICE_BUS_QUEUE_DEV="notifications-dev"
+
 # Storage
 export STORAGE_ACCOUNT="lifedbstor"
 export STORAGE_CONTAINER="attachments"

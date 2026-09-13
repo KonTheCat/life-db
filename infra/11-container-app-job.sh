@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# notification-dispatcher: same image as mcp-server, different command,
-# Schedule trigger every 5 minutes (plan §5).
+# notification-dispatcher: same image as mcp-server, different command.
+# Event-driven (KEDA azure-servicebus scale rule) instead of a cron poll --
+# see service-bus-notifications-plan.md. One execution per queued message,
+# scaling from zero.
+#
+# NOTE (plan §5.2/§8): Container Apps' event-driven job + Service Bus scale
+# rule wiring changes across az cli/platform versions -- if `az containerapp
+# job create/update` rejects --scale-rule-identity or the metadata keys
+# below, re-check current `az containerapp job` docs before falling back to
+# connection-string-based scale-rule-auth.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source ./00-vars.sh
@@ -17,6 +25,8 @@ ENV_VARS=(
   "COSMOS_ENDPOINT=$COSMOS_ENDPOINT"
   "COSMOS_DATABASE_NAME=$COSMOS_DATABASE"
   "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID"
+  "SERVICE_BUS_NAMESPACE=$SERVICE_BUS_NAMESPACE.servicebus.windows.net"
+  "SERVICE_BUS_QUEUE_NAME=$SERVICE_BUS_QUEUE"
 )
 
 echo "== Container Apps Job: $CONTAINER_APP_JOB =="
@@ -34,8 +44,13 @@ else
     --registry-server "$(az acr show --name "$ACR_NAME" --resource-group "$ACR_RESOURCE_GROUP" --query loginServer -o tsv)" \
     --registry-identity "$IDENTITY_ID" \
     --user-assigned "$IDENTITY_ID" \
-    --trigger-type Schedule \
-    --cron-expression "*/5 * * * *" \
+    --trigger-type Event \
+    --min-executions 0 --max-executions 5 \
+    --polling-interval 30 \
+    --scale-rule-name sb-notifications \
+    --scale-rule-type azure-servicebus \
+    --scale-rule-metadata "namespace=$SERVICE_BUS_NAMESPACE" "queueName=$SERVICE_BUS_QUEUE" "messageCount=1" \
+    --scale-rule-identity "$IDENTITY_ID" \
     --replica-timeout 120 \
     --replica-retry-limit 1 \
     --parallelism 1 --replica-completion-count 1 \
@@ -43,3 +58,5 @@ else
     --command "uv" --args "run" "python" "dispatcher/run.py" \
     --env-vars "${ENV_VARS[@]}"
 fi
+
+echo "== Done. =="

@@ -35,6 +35,9 @@ assign_arm_role "Storage Blob Data Contributor" "/subscriptions/$SUBSCRIPTION_ID
 assign_arm_role "Key Vault Secrets Officer" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEY_VAULT"
 assign_arm_role "Cognitive Services OpenAI User" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.CognitiveServices/accounts/$AZURE_OPENAI_ACCOUNT"
 assign_arm_role "AcrPull" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$ACR_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME"
+# One namespace, one identity, both send (app) and receive (job) -- Owner is
+# simplest; split into Sender/Receiver roles later only if it starts to matter.
+assign_arm_role "Azure Service Bus Data Owner" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.ServiceBus/namespaces/$SERVICE_BUS_NAMESPACE"
 
 echo "== Cosmos data-plane role (separate RBAC model -- see infra/05) =="
 if az cosmosdb sql role assignment list --account-name "$COSMOS_ACCOUNT" --resource-group "$RESOURCE_GROUP" \

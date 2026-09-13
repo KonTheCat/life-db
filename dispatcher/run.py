@@ -12,13 +12,17 @@ from services import keyvault  # noqa: E402
 keyvault.bootstrap_env({"TELEGRAM_BOT_TOKEN": "telegram-bot-token"})
 
 from services import notifications as notifications_service  # noqa: E402
+from services import servicebus as servicebus_service  # noqa: E402
 
 
 def main() -> None:
-    result = notifications_service.dispatch_due()
-    print(f"scanned {result['scanned']} due notification(s)")
-    for r in result["results"]:
-        print(f"  {r['id']}: {r['status']}")
+    result = servicebus_service.receive_and_handle(
+        lambda body: notifications_service.handle_wakeup(body["notification_id"])
+    )
+    if result is None:
+        print("no message available (lost the race to another execution) -- exiting cleanly")
+        return
+    print(f"{result['id']}: {result['status']}")
 
 
 if __name__ == "__main__":

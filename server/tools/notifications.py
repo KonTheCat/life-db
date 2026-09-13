@@ -14,8 +14,8 @@ def register(mcp: FastMCP) -> None:
     ) -> dict:
         """Schedule a reminder.
 
-        due_at: ISO 8601 UTC timestamp — the notification fires once due_at
-                has passed and the dispatcher next runs (every few minutes).
+        due_at: ISO 8601 UTC timestamp — the notification fires within
+                roughly a minute of due_at (Service Bus scheduled delivery).
         item_ref: optional {"collection": ..., "docId": ...} linking this
                   reminder to a document elsewhere in the database.
         """

@@ -1,5 +1,13 @@
 # personal-db — End-to-End Implementation Plan
 
+> **2026-09-13 update:** the `notification-dispatcher` job described below (Schedule
+> trigger, cron poll of `_notifications`) has been replaced by an event-driven design —
+> Service Bus scheduled messages + a KEDA `azure-servicebus` scale rule, `Event` trigger
+> type, no polling anywhere. See [service-bus-notifications-plan.md](service-bus-notifications-plan.md)
+> for the full design and migration record. The architecture/resource sections below are
+> left as the historical build-phase record; treat "Schedule trigger, cron" mentions
+> throughout as superseded by that doc.
+
 Target stack: **FastMCP** (Python) server on **Azure Container Apps**, **Azure Cosmos DB for NoSQL** (serverless) as the store, **Azure Storage** (blob) for attachments, a **Container Apps Job** on a cron trigger for reminder dispatch, and **Azure CLI scripts** as IaC (no Terraform/Bicep).
 
 FastMCP is at v4.0.3 as of September 2026 (3.x GA'd auth/versioning/OpenTelemetry in Feb 2026; 4.0 shipped a new protocol engine Aug 31, 2026 alongside the MCP 2026-07-28 spec — most 3.x code upgrades without changes). Build against 4.x from the start.
