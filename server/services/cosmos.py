@@ -13,6 +13,11 @@ from azure.mgmt.cosmosdb.models import (
 
 SYSTEM_FIELDS = {"id", "_schemaVersion", "created_at", "updated_at", "attachments"}
 
+# Metadata Cosmos injects into every stored document itself -- never written
+# by application code, so they should never be judged against a collection's
+# field schema (e.g. when migrate_schema validates raw query_items() output).
+COSMOS_RESERVED_FIELDS = {"_rid", "_self", "_etag", "_attachments", "_ts"}
+
 # Reserved: real system containers this server manages directly, plus the
 # whole leading-underscore namespace so a future system container never
 # collides with a user collection either. A collection named the same as
@@ -52,7 +57,7 @@ def validate_against_schema(schema: dict, payload: dict, *, partial: bool) -> di
     cleaned: dict[str, Any] = {}
 
     for key, value in payload.items():
-        if key in SYSTEM_FIELDS:
+        if key in SYSTEM_FIELDS or key in COSMOS_RESERVED_FIELDS:
             continue
         if key not in fields:
             errors.append(f"unknown field '{key}'")
