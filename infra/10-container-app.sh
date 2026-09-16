@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# SUPERSEDED (build phase 9): mcp-server moved to the "lifedb" App Service --
+# see infra/13-web-app.sh. Cold start on min-replicas 0 turned out not to be
+# "fine for solo interactive use" in practice, and a warm (min-replicas 1)
+# Container App replica cost more than App Service B1 with Always On. Kept
+# here for reference/rollback; not run by deploy.sh anymore. The
+# mcp-server Container App resource itself has NOT been deleted yet -- it's
+# scaled to zero so it's not costing anything idle, but decide whether to
+# tear it down once the web app migration is confirmed stable.
+#
 # mcp-server Container App: streamable-http, bearer auth, min replicas 0
 # (cold start of a few seconds after idle -- fine for solo interactive use).
 set -euo pipefail

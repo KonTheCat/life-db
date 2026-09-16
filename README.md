@@ -66,10 +66,11 @@ lookalike collections over time.
   OpenAI. Key Vault is only consulted when `MCP_TRANSPORT != stdio`; local `stdio`
   dev reads everything from `.env`.
 - **Deployment**: one container image (`Dockerfile`), two entrypoints — the
-  always-on `mcp-server` Container App and the event-triggered
-  `notification-dispatcher` Container Apps Job — sharing the same image and
-  managed identity. Infra is plain Azure CLI scripts under [infra/](infra/)
-  (`00`–`12`, run in order via `infra/deploy.sh`), not Terraform/Bicep.
+  `mcp-server` App Service Web App (Always On, no cold start) and the
+  event-triggered `notification-dispatcher` Container Apps Job — sharing the
+  same image and managed identity. Infra is plain Azure CLI scripts under
+  [infra/](infra/) (`00`–`13`, run in order; `infra/deploy.sh` rebuilds the
+  image and rolls it out to both), not Terraform/Bicep.
 
 See [life-db-plan.md](life-db-plan.md) for the full original build plan (resource
 list, RBAC roles, tool surface) and

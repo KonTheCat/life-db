@@ -30,8 +30,14 @@ export ACR_RESOURCE_GROUP="shared-global"
 export ACR_NAME="sharedacra7edb0c9"
 export LOG_ANALYTICS_WORKSPACE="lifedb-logs"
 export CONTAINERAPPS_ENV="lifedb-env"
-export CONTAINER_APP="mcp-server"
 export CONTAINER_APP_JOB="notification-dispatcher"
+
+# mcp-server web app (build phase 9 onward). Moved off Container Apps to
+# App Service so Always On avoids cold starts without paying for an
+# always-warm Container App replica -- runs on a Basic B1 Linux plan shared
+# across projects (same cost-sharing pattern as ACR_RESOURCE_GROUP above).
+export WEB_APP_RESOURCE_GROUP="lifedb"
+export WEB_APP="lifedb"
 
 # Service Bus (notification wake-up scheduling, replaces the cron dispatcher --
 # see service-bus-notifications-plan.md). Basic tier, two queues on one
