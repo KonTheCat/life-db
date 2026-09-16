@@ -67,13 +67,21 @@ def _build_where_clause(filters: dict[str, dict] | None) -> tuple[str, list[dict
 def register(mcp: FastMCP) -> None:
     @mcp.tool
     def get_document(collection: str, id: str) -> dict:
-        """Fetch a single document by id from a collection."""
-        _get_schema_doc(collection)  # also guards against silently creating a container for a typo'd name
+        """Fetch a single document by id from a collection.
+
+        If the collection's schema has `instructions` set, they're returned
+        here as `_instructions` (not persisted).
+        """
+        schema = _get_schema_doc(collection)  # also guards against silently creating a container for a typo'd name
         container = cosmos_service.get_or_create_collection_container(collection)
         try:
-            return container.read_item(item=id, partition_key=id)
+            doc = container.read_item(item=id, partition_key=id)
         except exceptions.CosmosResourceNotFoundError:
             raise ValueError(f"no document '{id}' in collection '{collection}'")
+        if schema.get("instructions"):
+            doc = dict(doc)
+            doc["_instructions"] = schema["instructions"]
+        return doc
 
     @mcp.tool
     def query_documents(
@@ -109,7 +117,9 @@ def register(mcp: FastMCP) -> None:
         Updating an existing document (id given) is a partial merge — omitted
         fields keep their prior value. System fields (id, _schemaVersion,
         created_at, updated_at, attachments) are set by the server and ignored
-        if passed in `data`.
+        if passed in `data`. If the collection's schema has `instructions` set,
+        they're returned here as `_instructions` (not persisted) -- read them
+        for formatting guidance or follow-up steps.
         """
         schema = _get_schema_doc(collection)
         container = cosmos_service.get_or_create_collection_container(collection)
@@ -140,6 +150,9 @@ def register(mcp: FastMCP) -> None:
         if snippet:
             embeddings_service.schedule_embedding(collection, id, snippet)
 
+        if schema.get("instructions"):
+            doc = dict(doc)
+            doc["_instructions"] = schema["instructions"]
         return doc
 
     @mcp.tool

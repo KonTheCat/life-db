@@ -45,13 +45,20 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool
     def create_collection(
-        collection: str, fields: dict, embed_fields: list[str] | None = None
+        collection: str,
+        fields: dict,
+        embed_fields: list[str] | None = None,
+        instructions: str | None = None,
     ) -> dict:
         """Create a new collection with a schema.
 
         fields: {field_name: {"type": "string"|"number"|"boolean"|"array"|"object", "required": bool}}
         embed_fields: field names concatenated to build the search embedding (used once
         semantic search is wired up; harmless to set now).
+        instructions: free-text guidance for the calling agent -- how to format data for
+        entry, and/or what to do after a write (e.g. follow-up steps, things to check).
+        Echoed back on every upsert_document call. Change with update_instructions;
+        doesn't require a schema version bump.
         """
         if cosmos_service.is_protected_collection_name(collection):
             raise ValueError(
@@ -73,6 +80,7 @@ def register(mcp: FastMCP) -> None:
             "version": 1,
             "fields": fields,
             "embed_fields": embed_fields or [],
+            "instructions": instructions or "",
             "created_at": now,
             "updated_at": now,
         }
@@ -114,6 +122,21 @@ def register(mcp: FastMCP) -> None:
         if embed_fields is not None:
             doc["embed_fields"] = embed_fields
         doc["version"] += 1
+        doc["updated_at"] = _now()
+        cosmos_service.get_schemas_container().replace_item(item=doc, body=doc)
+        return doc
+
+    @mcp.tool
+    def update_instructions(collection: str, instructions: str) -> dict:
+        """Replace the free-text agent instructions for a collection.
+
+        Unlike update_schema, this does not bump the schema version and never
+        requires migrate_schema -- instructions don't affect document shape or
+        validation, only how the calling agent should format entries or handle
+        follow-up steps after a write.
+        """
+        doc = _get_schema_doc(collection)
+        doc["instructions"] = instructions
         doc["updated_at"] = _now()
         cosmos_service.get_schemas_container().replace_item(item=doc, body=doc)
         return doc
