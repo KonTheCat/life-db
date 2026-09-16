@@ -30,8 +30,6 @@ def ping(message: str = "pong") -> str:
 
 from tools import (  # noqa: E402  (after load_dotenv, before tool registration)
     attachments,
-    calendar,
-    contacts,
     documents,
     notifications,
     schema,
@@ -43,8 +41,6 @@ schema.register(mcp)
 documents.register(mcp)
 search.register(mcp)
 notifications.register(mcp)
-calendar.register(mcp)
-contacts.register(mcp)
 attachments.register(mcp)
 time_tool.register(mcp)
 

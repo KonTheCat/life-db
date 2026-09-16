@@ -2,7 +2,6 @@
 .git
 .env
 .env.example
-.graph_token_cache.json
 .dispatcher.log
 .azurite
 __pycache__

@@ -7,6 +7,10 @@
 > for the full design and migration record. The architecture/resource sections below are
 > left as the historical build-phase record; treat "Schedule trigger, cron" mentions
 > throughout as superseded by that doc.
+>
+> **2026-09-16 update:** the Microsoft Graph calendar/contacts integration (§7, and
+> every other mention below) was ripped out — out of scope for this project. Treat
+> all Graph/Entra ID/calendar/contacts references below as removed.
 
 Target stack: **FastMCP** (Python) server on **Azure Container Apps**, **Azure Cosmos DB for NoSQL** (serverless) as the store, **Azure Storage** (blob) for attachments, a **Container Apps Job** on a cron trigger for reminder dispatch, and **Azure CLI scripts** as IaC (no Terraform/Bicep).
 
@@ -37,10 +41,9 @@ FastMCP is at v4.0.3 as of September 2026 (3.x GA'd auth/versioning/OpenTelemetr
         Cosmos DB (NoSQL,       Storage Account (Blob)     Key Vault
         serverless)             — attachments               — secrets
         - _schemas
-        - _notifications                                   Entra ID App Reg
-        - <dynamic per-collection>                          — Graph delegated
-        - vector index per collection                         auth (M365
-                                                                calendar/contacts)
+        - _notifications
+        - <dynamic per-collection>
+        - vector index per collection
 ```
 
 Both compute pieces (the always-on server and the scheduled job) live in the **same Container Apps Environment**, share the **same container image**, and use the **same user-assigned managed identity** — the job just runs a different entrypoint/command against the image.
@@ -60,15 +63,14 @@ Both compute pieces (the always-on server and the scheduled job) live in the **s
 | Cosmos DB account (NoSQL API, **serverless** capacity mode) | primary data store | serverless has no per-container throughput to manage and no fixed container-count cap (that 25-container ceiling only applies to shared-throughput databases) — good fit for a schema-driven, containers-created-on-demand design |
 | Azure OpenAI account (`S0`) + `text-embedding-3-small` deployment | embeddings for semantic recall | provisioned in phase 4 as `lifedb-openai` (added to the resource set; wasn't broken out as its own row in the original plan) |
 | Storage Account (StorageV2, Standard LRS) | blob container for attachments | `lifedbstor` already existed in `lifedb` RG, used as-is; private container, access via user-delegation SAS (AAD) |
-| Key Vault | secrets: Cosmos key (if not using AAD auth), Graph client secret + refresh token, MCP bearer token, storage connection info | Container App reads via managed identity, not env-baked secrets |
+| Key Vault | secrets: Cosmos key (if not using AAD auth), MCP bearer token, storage connection info | Container App reads via managed identity, not env-baked secrets |
 | User-assigned Managed Identity | shared by `mcp-server` and the job | RBAC roles below |
-| Entra ID App Registration | Microsoft Graph delegated access (calendar + contacts) | see §7 |
 
 RBAC roles to assign to the managed identity:
 - Cosmos DB Built-in Data Contributor (data-plane role, assigned via `az cosmosdb sql role assignment create` — the control-plane `Contributor` role does **not** grant data access)
 - **Cosmos DB Operator (ARM/control-plane role)** — needed *in addition* to the data-plane role above. Discovered during phase 3: Cosmos DB's AAD data-plane RBAC explicitly cannot create/delete containers or databases (only item-level CRUD), even with `containers/*` in the data-plane role's dataActions — see [aka.ms/cosmos-native-rbac](https://aka.ms/cosmos-native-rbac). `create_collection`'s dynamic container creation therefore goes through the ARM management SDK (`azure-mgmt-cosmosdb`), which needs this ARM role. Locally this worked for free under subscription Owner; the deployed managed identity will need it assigned explicitly.
 - Storage Blob Data Contributor on the storage account
-- Key Vault Secrets **Officer** (not just User) on the vault -- the Graph token cache writes its rotated refresh token back to Key Vault on every silent renewal (§7), so read-only access isn't enough; found by testing the deployed server end-to-end
+- Key Vault Secrets User on the vault
 - Cognitive Services OpenAI User on the Azure OpenAI account (embeddings)
 
 ---
@@ -104,8 +106,6 @@ RBAC roles to assign to the managed identity:
   - **Document tools**: `query_documents` (field-filter object: eq/gt/lt/in/contains, plus a `fields` projection param so responses stay lean), `upsert_document`, `delete_document`, `get_document`
   - **Search tool**: `search` (natural-language query, optional collection filter, returns pointers: collection/id/snippet/score — not full documents)
   - **Notification tools**: `schedule_notification`, `cancel_notification`, `list_notifications`, `send_now`
-  - **Calendar tools**: `list_calendars`, `list_events`, `create_event`, `update_event`, `delete_event`, `get_free_busy`
-  - **Contact tools**: `search_contacts`, `get_contact`, `create_contact`, `update_contact`, `delete_contact`
   - **Attachment tools**: `upload_attachment`, `list_attachments`, `get_attachment_link` (time-limited SAS), `delete_attachment`
 - Validation: every write goes through the schema in `_schemas` before touching Cosmos — strict mode (reject unknown fields), reject missing required fields, reject type mismatches. System fields (`_schemaVersion`, `created_at`, `updated_at`, `attachments`) are stripped from user-supplied payloads and set by the server.
 
@@ -120,7 +120,6 @@ RBAC roles to assign to the managed identity:
   2. Message the bot once, then hit `https://api.telegram.org/bot<token>/getUpdates` to read back your numeric chat ID. One-time, done locally.
   3. Store `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in Key Vault, injected into the job the same way as every other secret in §8.
   4. No SDK needed — `httpx`/`requests` is enough for `sendMessage`. Skip `python-telegram-bot`; that library is built for bots that also receive commands, which this doesn't do.
-  This is fully decoupled from the Graph integration in §7 — Telegram delivery has zero dependency on the Graph auth flow, so §6 and §7 can be built/tested independently of each other.
 
 ---
 
@@ -132,21 +131,17 @@ RBAC roles to assign to the managed identity:
 
 ---
 
-## 7. Microsoft Graph integration (calendar + contacts)
+## 7. (removed) Microsoft Graph integration
 
-This is the fiddly part because it's a **personal** Microsoft account, not a work/school tenant — application (app-only) permissions generally don't work for personal-account Calendars/Contacts; you need **delegated** permissions with a real sign-in.
-
-1. Register an app in Entra ID: **Accounts in any organizational directory and personal Microsoft accounts** (multi-tenant + MSA), as a **public client** (`isFallbackPublicClient: true`, no client secret/certificate). Add delegated scopes: `Calendars.ReadWrite`, `Contacts.ReadWrite`, `offline_access`. Built via `infra/09-entra-app-registration.sh` (app registration is scriptable; consent is not — see step 2).
-2. One-time interactive auth: **device code flow** (`server/services/graph_auth_setup.py`), not auth-code + PKCE — no redirect URI or local HTTP listener needed, just a `microsoft.com/devicelogin` code the user enters on any browser (doesn't have to be the machine running the script). Personal-account consent happens inline during this sign-in.
-3. MSAL's `SerializableTokenCache`, persisted to a local file (`.graph_token_cache.json`, gitignored), holds the access + refresh tokens and handles rotation transparently on every `acquire_token_silent()` call — no manual refresh-token bookkeeping needed. Locally this file *is* the credential store; once deployed (phase 8), its contents move into Key Vault (or the cache gets re-serialized there) so the Container App can read it via managed identity instead of a local file.
-4. No client secret or certificate at all, since this is a public client — one less secret to manage for a single-user personal script.
+Originally covered a calendar/contacts integration via Microsoft Graph delegated
+auth. Removed as out of scope — see the update note at the top of this doc.
 
 ---
 
 ## 8. Security & secrets
 
 - No secrets baked into the image or committed to the repo. Container App secrets reference Key Vault via managed identity (`az containerapp secret set --identity ... --keyvault-url ...` pattern, or mount via the Container Apps Key Vault reference feature).
-- MCP bearer token, Cosmos key (if used instead of AAD data-plane auth — prefer AAD/managed identity and skip the key entirely), storage SAS-signing key material, Graph client secret, Graph refresh token — all in Key Vault.
+- MCP bearer token, Cosmos key (if used instead of AAD data-plane auth — prefer AAD/managed identity and skip the key entirely), storage SAS-signing key material — all in Key Vault.
 - Prefer **Azure AD RBAC for Cosmos data-plane access** over connection-string keys wherever the SDK path supports it, so there's no long-lived Cosmos key sitting in the vault at all.
 
 ---
@@ -168,7 +163,6 @@ infra/
   06-storage-account.sh      # storage account + attachments container
   07-key-vault.sh            # vault + initial secret placeholders
   08-managed-identity.sh     # UAMI + RBAC role assignments (Cosmos, Storage, KV)
-  09-entra-app-registration.sh  # Graph app reg (manual consent step called out, not fully scriptable)
   10-container-app.sh        # mcp-server, ingress, secrets, identity
   11-container-app-job.sh    # notification-dispatcher, schedule trigger
   deploy.sh                  # az acr build + update revision/job — the thing you re-run on every code change
@@ -189,21 +183,18 @@ personal-db/
       documents.py
       search.py
       notifications.py
-      calendar.py
-      contacts.py
       attachments.py
     services/
       cosmos.py             # Cosmos client, container cache, schema validation
       embeddings.py         # Azure OpenAI embedding calls, non-blocking wrapper
       storage.py            # blob upload/SAS
-      graph.py              # MSAL + Graph calls, refresh-token persistence
       auth.py               # bearer token middleware
   dispatcher/
     run.py                  # entrypoint for the Container Apps Job
   infra/                    # §9
   tests/
   Dockerfile                # single image, two entrypoints (server vs job) via CMD override
-  pyproject.toml            # fastmcp, azure-cosmos, azure-storage-blob, azure-identity, msal, azure-keyvault-secrets
+  pyproject.toml            # fastmcp, azure-cosmos, azure-storage-blob, azure-identity, azure-keyvault-secrets
   .env.example
 ```
 
@@ -227,20 +218,17 @@ personal-db/
           "AZURE_OPENAI_ENDPOINT": "...",
           "AZURE_OPENAI_KEY": "...",
           "TELEGRAM_BOT_TOKEN": "...",
-          "TELEGRAM_CHAT_ID": "...",
-          "GRAPH_CLIENT_ID": "...",
-          "GRAPH_REFRESH_TOKEN": "..."
+          "TELEGRAM_CHAT_ID": "..."
         }
       }
     }
   }
   ```
-  Restart Claude Desktop after edits to pick up config/env changes; the server's stdout/stderr land in Claude Desktop's MCP log files, which is where to look when a tool call misbehaves. This lets essentially every tool (schema, documents, search, notifications-minus-cron, calendar/contacts, attachments) be exercised inside a real Claude conversation before any Container Apps resource exists.
+  Restart Claude Desktop after edits to pick up config/env changes; the server's stdout/stderr land in Claude Desktop's MCP log files, which is where to look when a tool call misbehaves. This lets essentially every tool (schema, documents, search, notifications-minus-cron, attachments) be exercised inside a real Claude conversation before any Container Apps resource exists.
 - Point local dev at a **real serverless Cosmos dev account** rather than the Cosmos emulator — the emulator's vector search support lags the cloud service, and this project leans on vector search from day one. A second, cheap serverless account (or a separate database in the same account) for dev is simpler than fighting emulator gaps. This is the one Azure resource worth provisioning early (see §13 phase 2) — everything else in §2 can wait until deploy.
 - Blob storage: local dev points straight at the real `lifedbstor` account (already existed in the `lifedb` resource group, alongside Cosmos) via AAD, rather than Azurite — one less moving part, and it means `get_attachment_link` exercises the real production code path (user-delegation SAS) from day one instead of the shared-key fallback. Azurite remains a documented fallback in `.env.example` (set `AZURE_STORAGE_CONNECTION_STRING=UseDevelopmentStorage=true`) for fully offline work.
 - `.env` (loaded by `server/main.py` directly, or mirrored into the `claude_desktop_config.json` `env` block above) for local secrets, never committed; production secrets come from Key Vault only once deployed.
 - The `notification-dispatcher` entrypoint (`dispatcher/run.py`) is just a script — run it manually or on a local loop/Task Scheduler during development to test reminder delivery end-to-end (including real Telegram messages) without a Container Apps Job existing yet.
-- Graph's one-time interactive auth-code flow (§7 step 2) is inherently local anyway (needs a browser), so calendar/contacts tools are fully testable pre-deploy once the refresh token is in `.env`.
 
 ---
 
@@ -262,7 +250,7 @@ Phases 1–7 are entirely local: stdio transport, Claude Desktop as the test cli
 3. **Schema engine + CRUD**: schema validation logic, `create_collection`/`update_schema`/`migrate_schema`, `query_documents`/`upsert_document`/`delete_document`/`get_document`. Test by driving these tools directly from Claude Desktop — create a collection, insert/query/update/delete documents, confirm validation rejects bad payloads.
 4. **Semantic recall**: embedding service (Azure OpenAI or direct OpenAI, callable from a laptop with just an API key — no Azure infra), `_search_index` container with vector index enabled, `search` tool, force-reembed tool. Test with real natural-language queries in Claude Desktop.
 5. **Notifications**: `_notifications` container, `schedule_notification`/`cancel_notification`/`list_notifications`, Telegram bot delivery (§5 setup steps 1–2 are local anyway). Run `dispatcher/run.py` manually/on a local loop and confirm a real Telegram message arrives. Defer wrapping it as a Container Apps Job with a Schedule trigger to phase 8.
-6. **Graph calendar/contacts**: app registration, one-time auth-code flow (needs a browser — do it locally regardless), MSAL wrapper with refresh-token rotation persisted to `.env` for now, calendar + contact tools tested from Claude Desktop against your real calendar/contacts.
+6. *(removed — was Graph calendar/contacts)*
 7. **Attachments**: real `lifedbstor` account + `attachments` container, upload/list/SAS-link/delete tools, tested from Claude Desktop.
 8. **Harden + ship**: now provision the rest of §2 — `infra/01`–`04`, `06`–`11` (registry, Log Analytics, Container Apps environment, real storage account, Key Vault, managed identity + RBAC, `mcp-server`, `notification-dispatcher` job with its cron Schedule trigger). Move every secret from `.env` into Key Vault, flip `MCP_TRANSPORT` to `streamable-http`, add bearer-token auth, run `infra/deploy.sh`, connect the deployed URL as a remote MCP server in Claude, and smoke-test the full tool surface end to end against production infra — the same test scripts/conversations used in phases 3–7 should now pass unchanged against the deployed server.
 

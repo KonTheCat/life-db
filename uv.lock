@@ -937,7 +937,6 @@ dependencies = [
     { name = "azure-storage-blob" },
     { name = "fastmcp" },
     { name = "httpx" },
-    { name = "msal" },
     { name = "python-dotenv" },
     { name = "tzdata" },
 ]
@@ -957,7 +956,6 @@ requires-dist = [
     { name = "azure-storage-blob", specifier = ">=12.24" },
     { name = "fastmcp", specifier = ">=4.0.3" },
     { name = "httpx", specifier = ">=0.28" },
-    { name = "msal", specifier = ">=1.31" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "tzdata", specifier = ">=2025.2" },
 ]

@@ -27,12 +27,6 @@ def get_secret(name: str) -> str | None:
         return None
 
 
-def set_secret(name: str, value: str) -> None:
-    client = _client()
-    if client is not None:
-        client.set_secret(name, value)
-
-
 def bootstrap_env(env_to_secret: dict[str, str]) -> None:
     """Populate os.environ from Key Vault for plain code that reads secrets
     straight from the environment (telegram.py, auth.py), the same way it

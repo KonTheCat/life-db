@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Key Vault for production secrets (Telegram bot token, MCP bearer token, the
-# Graph device-code token cache). Standard tier: pay-per-operation, no fixed
-# idle cost. RBAC authorization mode (no access policies), consistent with
-# the AAD-everywhere approach used throughout this project.
+# Key Vault for production secrets (Telegram bot token, MCP bearer token).
+# Standard tier: pay-per-operation, no fixed idle cost. RBAC authorization
+# mode (no access policies), consistent with the AAD-everywhere approach
+# used throughout this project.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 source ./00-vars.sh

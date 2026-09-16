@@ -29,10 +29,7 @@ assign_arm_role() {
 echo "== ARM (control-plane) roles =="
 assign_arm_role "Cosmos DB Operator" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DocumentDB/databaseAccounts/$COSMOS_ACCOUNT"
 assign_arm_role "Storage Blob Data Contributor" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT"
-# Officer, not User: the Graph token cache (services/graph.py) has to write
-# its rotated refresh token back to Key Vault on every silent renewal, not
-# just read it -- plain read-only access breaks that (found by testing).
-assign_arm_role "Key Vault Secrets Officer" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEY_VAULT"
+assign_arm_role "Key Vault Secrets User" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEY_VAULT"
 assign_arm_role "Cognitive Services OpenAI User" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.CognitiveServices/accounts/$AZURE_OPENAI_ACCOUNT"
 assign_arm_role "AcrPull" "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$ACR_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME"
 # One namespace, one identity, both send (app) and receive (job) -- Owner is

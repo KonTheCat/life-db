@@ -1,8 +1,8 @@
 # life-db (personal-db)
 
 A personal MCP server: schema-driven documents, semantic recall, notifications,
-calendar/contacts, and file attachments — for Claude Desktop/Code to use as a
-single "life database" over an Azure backend.
+and file attachments — for Claude Desktop/Code to use as a single "life
+database" over an Azure backend.
 
 ## Approach
 
@@ -54,10 +54,6 @@ lookalike collections over time.
   since scheduling), and delivers via a Telegram bot. See
   [service-bus-notifications-plan.md](service-bus-notifications-plan.md) for the
   full design — there is no polling/cron anywhere in the current design.
-- **Calendar & contacts** go through Microsoft Graph using delegated auth (device
-  code flow, since this targets a personal Microsoft account, not a tenant app).
-  The token cache is a local file (`.graph_token_cache.json`, gitignored) that
-  MSAL refreshes silently.
 - **Attachments** live in Azure Blob Storage, keyed by
   `{collection}/{docId}/{attachmentId}-{filename}`; metadata sits on the parent
   document. Downloads are always short-lived SAS links, never inline content.
@@ -82,11 +78,11 @@ notification delivery redesign.
 ```
 server/
   main.py                 MCP entrypoint, tool registration, transport switch
-  services/                Azure/Graph/Telegram clients (cosmos, storage,
-                            embeddings, graph, keyvault, servicebus, telegram, auth)
+  services/                Azure/Telegram clients (cosmos, storage,
+                            embeddings, keyvault, servicebus, telegram, auth)
   tools/                   MCP tool definitions, grouped by area
                             (schema, documents, search, notifications,
-                             calendar, contacts, attachments, time_tool)
+                             attachments, time_tool)
 dispatcher/
   run.py                   Notification dispatcher job entrypoint
                             (receives one Service Bus message, delivers, exits)
@@ -128,13 +124,6 @@ Requires Python 3.14+ and [uv](https://docs.astral.sh/uv/).
      notification delivery.
    - `SERVICE_BUS_NAMESPACE` / `SERVICE_BUS_QUEUE_NAME` — point at the `-dev`
      queue, not prod, for local notification scheduling tests.
-   - `GRAPH_CLIENT_ID` — only needed for calendar/contacts tools. One-time
-     device-code sign-in:
-     ```
-     uv run python server/services/graph_auth_setup.py
-     ```
-     This writes `.graph_token_cache.json` (gitignored), which MSAL refreshes
-     automatically after that.
    - Leave `MCP_TRANSPORT` unset/`stdio` for local use — no bearer token or
      Key Vault needed.
 
